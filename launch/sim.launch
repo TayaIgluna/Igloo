@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<launch>
+
+
+  <arg name="modelPath" default="$(find igluna)/models"/>
+  <arg name="robotOnStructureUrdfFile" default="$(arg modelPath)/iiwa_on_structure.urdf.xacro" />
+  <arg name="GAZEBO_GUI" default="false"/>
+  <arg name="gazebo_world_file" default="$(find igluna)/worlds/igluna_world.world"/>
+  <arg name="rviz_config_file" default="$(find igluna)/worlds/igluna_rviz_config.rviz"/>
+
+  <!-- GAZEBO -->
+  <!-- enable/disable gui at will, the rviz listens to the simulation -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg gazebo_world_file)"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="$(arg GAZEBO_GUI)"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+    <!-- Load iiwa service -->
+  <include file="$(find iiwa_tools)/launch/iiwa_service.launch"/>
+    <!-- <node name="worldRightTransform" pkg="foot_control_xy" type="worldActorTransform" args="foot -x 2.0 -y 0.0 -z 0 -qx 0.0 -qy 0.0 -qz 0.0 -qw 1.0"/> -->
+
+  <param name="robot_description" command="$(find xacro)/xacro --check-order --inorder $(arg robotOnStructureUrdfFile) origin.x:=0 origin.y:=0 origin.z:=0"/>
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -model iiwa_on_structure" respawn="false" output="screen" />
+
+    <!-- Load joint controller configurations from YAML file to parameter server -->
+  <rosparam file="$(find iiwa_control)/config/iiwa_control.yaml" command="load"/>
+
+  <node name="iiwa_controller" pkg="controller_manager" type="spawner" respawn="false"
+    output="screen" ns="/iiwa" args="/iiwa/DSImpedance /iiwa/custom_joint_state_controller"/>
+
+  <!-- convert joint states to TF transforms for rviz, etc -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
+    respawn="false" output="screen">
+    <remap from="/joint_states" to="/iiwa/joint_states" />
+  </node>
+
+  <node name="iiwa_rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(arg rviz_config_file)"
+        output="screen"
+        unless="$(arg GAZEBO_GUI)"/>
+</launch>
