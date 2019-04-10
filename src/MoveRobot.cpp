@@ -95,9 +95,10 @@ void MoveRobot::stopNode(int sig)
 }
 
 
-void MoveRobot::setDesiredPose(Eigen::Vector3f desiredPosition) 
+void MoveRobot::setDesiredPose(Eigen::Vector3f desiredPosition, Eigen::Vector4f desiredQuaternion) 
 {
   _xd = desiredPosition;
+  _qd = desiredQuaternion;
   std::cerr << "[MoveRobot]: Desired position: " << _xd.transpose() << std::endl;
 }
 
@@ -111,9 +112,6 @@ void MoveRobot::computeCommand()
   {
     _vd *= 0.3f/_vd.norm();
   }
-
-  // Compute desired quaternion
-  _qd << 0.0f,0.0f,1.0f,0.0f;
   
   // Compute desired angular velocity
   _omegad.setConstant(0.0f);

@@ -55,13 +55,13 @@ class MoveRobot
 		void run();
 
 		// Set desired joint angles
-		void setDesiredPose(Eigen::Vector3f desiredPosition);
+		void setDesiredPose(Eigen::Vector3f desiredPosition, Eigen::Vector4f desiredQuaternion);
 
 	private:
 
 		static void stopNode(int sig);
 
-  	void computeCommand();
+  		void computeCommand();
   
  	 	void publishData();
 

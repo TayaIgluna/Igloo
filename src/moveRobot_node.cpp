@@ -8,16 +8,22 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "move_robot");
 
   Eigen::Vector3f desiredPosition;
+  Eigen::Vector4f desiredQuaternion;
 
   // Initialize desired position
   desiredPosition.setConstant(0.0f);
+  desiredQuaternion.setConstant(0.0f);
 
   // Check if desired position is specified with the command line
-  if(argc == 4)
+  if(argc == 8)
   {
     for(int k = 0; k < 3; k++)
     {
       desiredPosition(k) = atof(argv[k+1]);
+    }
+    for(int k = 0; k < 4; k++)
+    {
+      desiredQuaternion(k) = atof(argv[k+4]);
     }
   }
   else
@@ -36,7 +42,7 @@ int main(int argc, char **argv)
   }
   else
   {
-    moveRobot.setDesiredPose(desiredPosition);
+    moveRobot.setDesiredPose(desiredPosition,desiredQuaternion);
     moveRobot.run();
   }
 
