@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="iiwa_on_structure">
+  <xacro:arg name="origin.x" default="-0.75"/>
+  <xacro:arg name="origin.y" default="0.24"/>
+  <xacro:arg name="origin.z" default="1.9"/>
+  <xacro:arg name="origin.ax" default="3.145"/>
+  <xacro:arg name="origin.ay" default="0"/>
+  <xacro:arg name="origin.az" default="0"/>
+  <xacro:arg name="simple_collision" default="false"/>
+
+
+  <link name="world"/>
+
+  <gazebo reference="world">
+    <static>true</static>
+    <!-- <turnGravityOff>true</turnGravityOff> -->
+  </gazebo>
+
+  <!-- Include all models -->
+  <xacro:include filename="$(find igluna)/models/structure.urdf.xacro"/>
+  <xacro:structure name="structure"
+                    parent="world">
+    <origin xyz="0 0 0.06" rpy="0 0 0"/>
+  </xacro:structure>
+
+  <xacro:include filename="$(find iiwa_description)/urdf/materials.xacro" />
+  <!--Import the lbr iiwa macro -->
+  <xacro:include filename="$(find iiwa_description)/urdf/iiwa7.xacro"/>
+
+
+  <!-- collision shapes -->
+  <xacro:if value="$(arg simple_collision)">
+    <xacro:arg name="collision_postfix" default="_s"/> <!-- TO-DO: Create simple collision shapes for iiwa 7 -->
+  </xacro:if>
+  <xacro:unless value="$(arg simple_collision)">
+    <xacro:arg name="collision_postfix" default=""/>
+  </xacro:unless>
+
+  <!--iiwa-->
+  <xacro:iiwa7 hardware_interface="EffortJointInterface" robot_name="iiwa" parent="structure_main_link" collision_postfix="$(arg collision_postfix)">
+    <origin xyz="-0.75 0.24 1.92" rpy="3.14159 0 ${3.14159/2}"/>
+  </xacro:iiwa7>
+
+</robot>

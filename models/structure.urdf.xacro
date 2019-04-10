@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<robot name="structure" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- properties /-->
+
+  <!-- URDF model with default base_link (world)-->
+<xacro:macro name="structure" params="parent name *origin">
+  <joint name="${parent}_${name}_base_joint" type="fixed">
+      <xacro:insert_block name="origin"/>
+      <parent link="${parent}"/>
+      <child link="${name}_main_link"/>
+  </joint>
+  <link name="${name}_main_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="50" />
+      <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+    </inertial>
+      <visual>
+          <origin xyz="0 0 0"/>
+          <geometry>
+            <mesh filename="package://igluna/models/STRUCTURE_V5.dae" scale="0.001 0.001 0.001"/>
+          </geometry>
+      </visual>
+      <collision>
+          <origin xyz="0 0 0"/>
+          <geometry>
+            <mesh filename="package://igluna/models/STRUCTURE_V5.dae" scale="0.001 0.001 0.001"/>
+          </geometry>
+      </collision>
+  </link>
+   
+ <gazebo reference="${name}_main_link">
+    <static>true</static>
+  </gazebo>
+  
+</xacro:macro>
+
+</robot>
