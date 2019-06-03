@@ -8,7 +8,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "move_robot_with_gripper");
 
   ros::NodeHandle n;
-  float frequency = 200.0f;
+  float frequency = 400.0f;
 
   MoveRobotWithGripper moveRobotWithGripper(n,frequency);
 

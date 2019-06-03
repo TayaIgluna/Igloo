@@ -27,15 +27,13 @@ bool MoveRobotWithGripper::init()
 
   _stop = false;
   _toolOffsetFromEE = 0.0f;
-  _msgCommand.data.resize(10);
-  for(int k = 0; k < 10 ;k++)
+  _msgCommand.data.resize(6);
+  for(int k = 0; k < 6 ;k++)
   {
     _msgCommand.data[k] = 0.0f;
   }
 
-  _subRobotPose = _n.subscribe<geometry_msgs::Pose>("/iiwa/ee_pose", 1,&MoveRobotWithGripper::updateRobotPose,this,ros::TransportHints().reliable().tcpNoDelay());
-  // _pubCommand = _n.advertise<std_msgs::Float64MultiArray>("/iiwa/PassiveDS/command", 1);
-  _pubCommand = _n.advertise<std_msgs::Float64MultiArray>("/iiwa/DSImpedance/command", 1);
+  _pubCommand = _n.advertise<std_msgs::Float64MultiArray>("/iiwa/CustomControllers/command", 1);
 
   signal(SIGINT,MoveRobotWithGripper::stopNode);
 
@@ -74,6 +72,8 @@ void MoveRobotWithGripper::run() {
 
       _mutex.lock();
 
+      receiveFrames();
+
       // Compute control command
       computeCommand();
 
@@ -81,6 +81,10 @@ void MoveRobotWithGripper::run() {
       publishData();
 
       _mutex.unlock();
+    }
+    else
+    {
+      receiveFrames();
     }
 
     ros::spinOnce();
@@ -116,32 +120,74 @@ void MoveRobotWithGripper::stopNode(int sig)
 }
 
 
+void MoveRobotWithGripper::receiveFrames()
+{
+  try
+  { 
+    //_lr.waitForTransform("/world", "/iiwa_link_ee", ros::Time(0), ros::Duration(3.0));
+    _lr.lookupTransform("/world", "/iiwa_link_ee",ros::Time(0), _transform);
+    _x << _transform.getOrigin().x(), _transform.getOrigin().y(), _transform.getOrigin().z();
+    _q << _transform.getRotation().w(), _transform.getRotation().x(), _transform.getRotation().y(), _transform.getRotation().z();
+    _wRb =  Utils<float>::quaternionToRotationMatrix(_q); 
+    _x+= _toolOffsetFromEE*_wRb.col(2);
+    float angle;
+    Eigen::Vector3f axis;
+    Utils<float>::quaternionToAxisAngle(_q,axis,angle);
+    _aa = angle*axis;
+    //std::cerr << "Axis angle measured: " << _aa.transpose() << std::endl;
+    
+    if(_firstRobotPose==false)
+    {
+      _firstRobotPose = true;
+      _qd = _q;
+      _xd = _x;
+      _aad = _aa;
+      _vd.setConstant(0.0f);
+    }
+
+    //std::cerr << "Position: " << _x.transpose() << std::endl;
+  } 
+  catch (tf::TransformException ex)
+  {
+  }
+}
+
 
 void MoveRobotWithGripper::computeCommand() 
 {
+  _plants[0] << 0.395f, -0.105f, 0.789f;
+  _plants[1] << 0.6f, -0.105f, 0.73f;
+  _plants[2] << 0.445f, -0.258f, 0.789f;
   // Compute desired velocity$
+  //_attractor[0] << 0.54f, 0.0f, 0.75f;
+  _attractor[0]=_plants[2];
+  _attractor[0](2)-=0.15f;
+  //too low horizontal pick
+  //_attractor[1] << 0.174f, -0.107f, 0.973f;
+  //_attractor[1] << 0.395f, -0.105f, 0.789f; 
+  _attractor[1]=_plants[2];
+  _attractor[2]=_attractor[1];
+  _attractor[2](2)-=0.1f;
+  _attractor[3] << 0.81f, 0.0f, 0.68f;
+  //_attractor[2] << 0.3f, -0.2f, 0.75f;
+  //attrac 4 same as 3 pour hor
+  _attractor[4] << 0.746f, -0.042f, 0.638f;
 
-  //_attractor[0]=_xd;
-  _attractor[0](0)=0.54f;
-  _attractor[0](1)=0.0f;
-  _attractor[0](2)=0.75f;
-  /*_quat[0]=_qd;
-  _quat[0](0)=0.69f;
-  _quat[0](1)=0.022f;
-  _quat[0](2)=0.71f;
-  _quat[0](3)=0.0f;*/
- 
-  _attractor[1] = _xd;
-  _attractor[1](0)=0.42f;
-  _attractor[1](1)=0.0f;
-  _attractor[1](2)= 1.0f;
-  _attractor[2] = _xd;
-  _attractor[2](0)= 0.21f;
-  _attractor[2](1) = -0.3f;
-  _attractor[2](2) =0.7f;
-  _attractor[3]= _xd;
-  _attractor[3](1) -=0.4f;
-  _attractor[3](0) -=0.2f;
+  //_quat[0] << 0.69f, 0.022f, 0.71f, 0.0f; 
+  _quat[1] << 0.999f, -0.02f, 0.027f, 0.027f; 
+  _quat[0]=_quat[1];
+  _quat[2]=_quat[1];
+  _quat[3]=_quat[1];
+  _quat[4]<< 0.39f, 0.87f, -0.03f, 0.286f;
+  // too low
+  //_quat[1] << 0.693f, -0.006f, 0.721f, -0.01f; 
+  //_quat[2] << 0.71f, -0.001f, 0.704f,-0.03f;
+  //_quat[2] << 0.68f, 0.01f, 0.73f,0.0f; goods
+  //_quat[3] << 0.672f, 0.005f, 0.740f, -0.003f; 
+  //_quat[4] << 0.075f, 0.61f, 0.248f, 0.748f;
+  //_quat[4] << 0.206f, 0.646f, 0.182f, 0.712f;
+  _qd=_quat[_id];
+  _qd.normalize();
 
   _vd = 3.0f*(_attractor[_id]-_x);
 
@@ -156,16 +202,11 @@ void MoveRobotWithGripper::computeCommand()
 
   if(_reached && _id == 0)
   {
-    //_id = 1;
-    //_reached = false;
-    
-    //_gripper.fullClose();
-    
-    
     if(!_first)
     {
       _first=true;
       _reachedTime = ros::Time::now().toSec();  
+      _gripper.fullOpen();
     }
     else
     {
@@ -179,15 +220,7 @@ void MoveRobotWithGripper::computeCommand()
     }
   }
   else if(_reached && _id == 1)
-  {
-    //_id = 0;
-    //_reached =false;
-    
-    //_gripper.fullClose();
-    Eigen::Vector4f quater (0.71f, 0.01f, 0.702f, -0.002f);
-    quater.normalize();
-    _qd=quater;
-    
+  { 
     if(!_first)
     {
       _first=true;
@@ -198,28 +231,59 @@ void MoveRobotWithGripper::computeCommand()
     {
       if(ros::Time::now().toSec()-_reachedTime>2)
       {
-        _id = 2;
+        //_id = 2;
         _reached = false;
         _first = false; 
         std::cerr << "b" << std::endl;
+        _id=2;
       }
     }
   }
   else if(_reached && _id == 2)
-  {
-    //_id = 0;
-    //_reached =false;
-    
-    //_gripper.fullOpen();
-    Eigen::Vector4f quate (0.58f, 0.38f, 0.62f, -0.35f);
-    quate.normalize();
-    _qd=quate;
-    
+  { 
     if(!_first)
     {
       _first=true;
       _reachedTime = ros::Time::now().toSec();  
-      _gripper.fullOpen(); 
+      //_gripper.fullOpen(); 
+    }
+    else
+    {
+      if(ros::Time::now().toSec()-_reachedTime>2)
+      {
+        _reached = false;
+        _first = false; 
+        std::cerr << "c" << std::endl;
+        _id=3;
+      }
+    }
+  }
+  else if(_reached && _id == 3)
+  { 
+    if(!_first)
+    {
+      _first=true;
+      _reachedTime = ros::Time::now().toSec(); 
+      //_gripper.fullOpen(); 
+    }
+    else
+    {
+      if(ros::Time::now().toSec()-_reachedTime>2)
+      {
+        _id = 4;
+        _reached = false;
+        _first = false; 
+        std::cerr << "d" << std::endl;
+      }
+    }
+  }
+    else if(_reached && _id == 4)
+  { 
+    if(!_first)
+    {
+      _first=true;
+      _reachedTime = ros::Time::now().toSec(); 
+      //_gripper.fullOpen(); 
     }
     else
     {
@@ -228,7 +292,7 @@ void MoveRobotWithGripper::computeCommand()
         _id = 0;
         _reached = false;
         _first = false; 
-        std::cerr << "c" << std::endl;
+        std::cerr << "d" << std::endl;
       }
     }
   }
@@ -245,6 +309,12 @@ void MoveRobotWithGripper::computeCommand()
   // Compute desired angular velocity
   _omegad.setConstant(0.0f);
 
+  float angle;
+  Eigen::Vector3f axis;
+  Utils<float>::quaternionToAxisAngle(_qd,axis,angle);
+  _aad = angle*axis;
+  //std::cerr << "Axis angle desired: " << _aad.transpose() << std::endl;
+
   //std::cerr << "[MoveRobotWithGripper]: " << "Position: " << _x.transpose() << " Quaternion: " << _q.transpose() << std::endl;
 
 }
@@ -255,30 +325,8 @@ void MoveRobotWithGripper::publishData()
   // Publish desired twist (passive ds controller)
   for(int k = 0; k < 3; k++)
   {
-    _msgCommand.data[k]  = _vd(k);
-    _msgCommand.data[k+3]  = _omegad(k);
+    _msgCommand.data[k]  = _aad(k);
+    _msgCommand.data[k+3]  = _vd(k);
   }
-  for(int k = 0; k < 4; k++)
-  {
-    _msgCommand.data[k+6]  = _qd(k);
-  }
-
   _pubCommand.publish(_msgCommand);
-}
-
-
-void MoveRobotWithGripper::updateRobotPose(const geometry_msgs::Pose::ConstPtr& msg)
-{
-  // Update end effecotr pose (position+orientation)
-  _x << msg->position.x, msg->position.y, msg->position.z;
-  _q << msg->orientation.w, msg->orientation.x, msg->orientation.y, msg->orientation.z;
-  _wRb = Utils<float>::quaternionToRotationMatrix(_q);
-  _x = _x+_toolOffsetFromEE*_wRb.col(2);
-
-  if(!_firstRobotPose)
-  {
-    _firstRobotPose = true;
-    _xd = _x;
-    _qd = _q;
-  }
 }

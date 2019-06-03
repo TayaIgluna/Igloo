@@ -32,6 +32,8 @@ class MoveRobotWithGripper
 		Eigen::Vector3f _x;
 		Eigen::Vector3f _xd;
 		Eigen::Vector4f _qd;
+		Eigen::Vector3f _aa;
+		Eigen::Vector3f _aad;
 		Eigen::Vector4f _q;
 		Eigen::Matrix3f _wRb;
 		Eigen::Vector3f _omegad;
@@ -43,8 +45,9 @@ class MoveRobotWithGripper
 
 		double _reachedTime;
 
-		Eigen::Vector3f _attractor[4];
-		Eigen::Vector4f _quat[1];
+		Eigen::Vector3f _attractor[6];
+		Eigen::Vector3f _plants[8];
+		Eigen::Vector4f _quat[6];
 		int _id;
 		bool _reached;
 
@@ -70,11 +73,11 @@ class MoveRobotWithGripper
 
 		static void stopNode(int sig);
 
+		void receiveFrames();
+
   		void computeCommand();
   
  	 	void publishData();
-
- 	 	void updateRobotPose(const geometry_msgs::Pose::ConstPtr& msg);
 
 };
 
