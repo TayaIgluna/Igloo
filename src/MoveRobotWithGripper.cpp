@@ -46,11 +46,15 @@ bool MoveRobotWithGripper::init()
   _loopRate.sleep();
 
   _reached = false;
-  _aero= true;
-  _pick=false;
+  _aero= false;
+  _pick=true;
   if(!_pick)
     {
       _id = 0;
+    }
+  else
+    {
+      _id=6;
     }
 
   
@@ -167,13 +171,13 @@ void MoveRobotWithGripper::computeCommand()
   // Compute desired velocity$
   _attractor[0] << 0.54f, 0.0f, 0.67f;
   _attractor[1]=_plants[0];
-  _attractor[1](2)-=0.15f;
+  _attractor[1](2)-=0.1f;
   //too low horizontal pick
   //_attractor[1] << 0.174f, -0.107f, 0.973f;
   //_attractor[1] << 0.395f, -0.105f, 0.789f; 
   _attractor[2]=_plants[0];
   _attractor[3]=_attractor[1];
-  _attractor[3](2)-=0.15f;
+  _attractor[3](2)-=0.1f;
   //good ones 4&5 aero
   if (_aero)
   {
@@ -195,8 +199,10 @@ void MoveRobotWithGripper::computeCommand()
   }
   else if(!_aero && _pick)
   {
-    _attractor[4] << 0.705f, 0.223f, 0.612f;
-    _attractor[5] << 0.715f, 0.223f, 0.612f;
+    _attractor[4] << 0.715f, 0.223f, 0.612f;
+    _attractor[5] << 0.715f, 0.223f, 0.66f;
+    _attractor[6] << 0.715f, 0.223f, 0.612f;
+    _attractor[7] =_attractor[0];
   }
 
   //_quat[1] << 0.69f, 0.022f, 0.71f, 0.0f; 
@@ -210,7 +216,7 @@ void MoveRobotWithGripper::computeCommand()
   _quat[4]=_quat[1];
   _quat[8]=_quat[1];
   _quat[9]=_quat[1];
-  int nb=9;
+  int nb=7;
   // too low
   //_quat[1] << 0.693f, -0.006f, 0.721f, -0.01f; 
   //_quat[2] << 0.71f, -0.001f, 0.704f,-0.03f;
@@ -238,30 +244,51 @@ void MoveRobotWithGripper::computeCommand()
       _first=true;
       _reachedTime = ros::Time::now().toSec();  
       //_gripper.fullOpen();
-      if(_id==2)
+      if(_id==2 && !_pick)
       {
         _gripper.fullClose();
       }
-      if(_id==5 && !_aero)
+      else if(_id==2 && _pick)
       {
         _gripper.fullOpen();
+      }
+      if(_id==5 && !_aero)
+      {
+        if(!_pick)
+        {
+          _gripper.fullOpen();
+        }
+        else
+        {
+          _gripper.fullClose();
+        }
       }
     }
     else
     {
       if(ros::Time::now().toSec()-_reachedTime>2)
       {
-        if(_id!=nb && !_pick)
+        if(!_pick)
         {
-          _id = _id+1;
+          if(_id!=nb)
+          {
+            _id = _id+1;
+          }
+          else
+          {
+            _id=0;
+          }
         }
-        else if(_id=nb && !_pick)
+        else
         {
-          _id=0;
-        }
-        else if(_pick && _id!=0)
-        {
-          _id=_id-1;
+          if(_id!=0)
+          {
+            _id=_id-1;
+          }
+          else
+          {
+            _id=nb;
+          } 
         }
         _reached = false;
         _first = false; 
