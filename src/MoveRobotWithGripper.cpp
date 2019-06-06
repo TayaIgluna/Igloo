@@ -4,6 +4,8 @@
 
 MoveRobotWithGripper* MoveRobotWithGripper::me = NULL;
 
+
+
 MoveRobotWithGripper::MoveRobotWithGripper(ros::NodeHandle &n, float frequency):
   _n(n),
   _loopRate(frequency)
@@ -43,8 +45,14 @@ bool MoveRobotWithGripper::init()
    ros::spinOnce();
   _loopRate.sleep();
 
-  _id = 0;
   _reached = false;
+  _aero= true;
+  _pick=false;
+  if(!_pick)
+    {
+      _id = 0;
+    }
+
   
   _first = false;
 
@@ -155,38 +163,54 @@ void MoveRobotWithGripper::receiveFrames()
 
 void MoveRobotWithGripper::computeCommand() 
 {
-  _plants[0] << 0.42f, -0.148f, 0.83f;
-  _plants[1] << 0.6f, -0.105f, 0.73f;
-  _plants[2] << 0.445f, -0.258f, 0.789f;
-  _plants[3] << 0.6f, -0.235f, 0.789f;
-  _plants[4] << 0.6f, -0.345f, 0.789f;
-  _plants[5] << 0.073f, -0.331f, 0.852f;
+
   // Compute desired velocity$
-  //_attractor[0] << 0.54f, 0.0f, 0.75f;
-  _attractor[0]=_plants[0];
-  _attractor[0](2)-=0.15f;
+  _attractor[0] << 0.54f, 0.0f, 0.67f;
+  _attractor[1]=_plants[0];
+  _attractor[1](2)-=0.15f;
   //too low horizontal pick
   //_attractor[1] << 0.174f, -0.107f, 0.973f;
   //_attractor[1] << 0.395f, -0.105f, 0.789f; 
-  _attractor[1]=_plants[0];
-  _attractor[2]=_attractor[1];
-  _attractor[2](2)-=0.1f;
-  //good ones 3&4
-  //_attractor[3] << 0.64f, 0.0f, 0.57f;
-  //_attractor[2] << 0.3f, -0.2f, 0.75f;
-  //attrac 4 same as 3 pour hor
-  //_attractor[4] << 0.64f, -0.042f, 0.57f;
-  _attractor[3] << 0.406f, -0.468f, 0.679f;
-  _attractor[4] << 0.476f, -0.468f, 0.679f;
+  _attractor[2]=_plants[0];
+  _attractor[3]=_attractor[1];
+  _attractor[3](2)-=0.15f;
+  //good ones 4&5 aero
+  if (_aero)
+  {
+    _attractor[4] << 0.748f, -0.13f, 0.58f;
+    _attractor[5] << 0.716f, -0.059f, 0.503f;
 
-  //_quat[0] << 0.69f, 0.022f, 0.71f, 0.0f; 
+  //laero suite
+    _attractor[6]=_attractor[0];
+    _attractor[7] << 0.506f, -0.44f, 0.724f;
+    _attractor[8] << 0.58f, -0.44f, 0.724f;
+    _attractor[9]=_attractor[7];
+    _quat[5]<< 0.42f, 0.87f, 0.014f, 0.015f;
+  }
+  else if(!_aero && !_pick)
+  {
+    _attractor[4] << 0.705f, 0.223f, 0.612f;
+    _attractor[5] << 0.715f, 0.223f, 0.612f;
+    _quat[5]=_quat[1];
+  }
+  else if(!_aero && _pick)
+  {
+    _attractor[4] << 0.705f, 0.223f, 0.612f;
+    _attractor[5] << 0.715f, 0.223f, 0.612f;
+  }
+
+  //_quat[1] << 0.69f, 0.022f, 0.71f, 0.0f; 
   _quat[1] << 0.999f, -0.02f, 0.027f, 0.027f; 
   //_quat[1]<< 0.533f, 0.466f, 0.546f, -0.448f;
   _quat[0]=_quat[1];
   _quat[2]=_quat[1];
   _quat[3]=_quat[1];
-  //_quat[4]<< 0.39f, 0.87f, -0.03f, 0.286f;
+  _quat[6]=_quat[1];
+  _quat[7]=_quat[1];
   _quat[4]=_quat[1];
+  _quat[8]=_quat[1];
+  _quat[9]=_quat[1];
+  int nb=9;
   // too low
   //_quat[1] << 0.693f, -0.006f, 0.721f, -0.01f; 
   //_quat[2] << 0.71f, -0.001f, 0.704f,-0.03f;
@@ -196,7 +220,6 @@ void MoveRobotWithGripper::computeCommand()
   //_quat[4] << 0.206f, 0.646f, 0.182f, 0.712f;
   _qd=_quat[_id];
   _qd.normalize();
-
   _vd = 3.0f*(_attractor[_id]-_x);
 
   if((_attractor[_id]-_x).norm()<0.05)
@@ -208,126 +231,45 @@ void MoveRobotWithGripper::computeCommand()
     _reached = false;
   }
 
-  if(_reached && _id == 0)
+  if(_reached)
   {
     if(!_first)
     {
       _first=true;
       _reachedTime = ros::Time::now().toSec();  
       //_gripper.fullOpen();
+      if(_id==2)
+      {
+        _gripper.fullClose();
+      }
+      if(_id==5 && !_aero)
+      {
+        _gripper.fullOpen();
+      }
     }
     else
     {
       if(ros::Time::now().toSec()-_reachedTime>2)
       {
-        _id = 1;
+        if(_id!=nb && !_pick)
+        {
+          _id = _id+1;
+        }
+        else if(_id=nb && !_pick)
+        {
+          _id=0;
+        }
+        else if(_pick && _id!=0)
+        {
+          _id=_id-1;
+        }
         _reached = false;
         _first = false; 
-        std::cerr << "a" << std::endl;
+        std::cerr << _id << std::endl;
       }
     }
   }
-  else if(_reached && _id == 1)
-  { 
-    if(!_first)
-    {
-      _first=true;
-      _reachedTime = ros::Time::now().toSec(); 
-      _gripper.fullClose();  
-    }
-    else
-    {
-      if(ros::Time::now().toSec()-_reachedTime>2)
-      {
-        //_id = 2;
-        _reached = false;
-        _first = false; 
-        std::cerr << "b" << std::endl;
-        _id=2;
-      }
-    }
-  }
-  else if(_reached && _id == 2)
-  { 
-    if(!_first)
-    {
-      _first=true;
-      _reachedTime = ros::Time::now().toSec();  
-      //_gripper.fullOpen(); 
-    }
-    else
-    {
-      if(ros::Time::now().toSec()-_reachedTime>2)
-      {
-        _reached = false;
-        _first = false; 
-        std::cerr << "c" << std::endl;
-        _id=3;
-      }
-    }
-  }
-  else if(_reached && _id == 3)
-  { 
-    if(!_first)
-    {
-      _first=true;
-      _reachedTime = ros::Time::now().toSec(); 
-      //_gripper.fullOpen(); 
-    }
-    else
-    {
-      if(ros::Time::now().toSec()-_reachedTime>2)
-      {
-        _id = 4;
-        _reached = false;
-        _first = false; 
-        std::cerr << "d" << std::endl;
-      }
-    }
-  }
-    else if(_reached && _id == 4)
-  { 
-    if(!_first)
-    {
-      _first=true;
-      _reachedTime = ros::Time::now().toSec(); 
-      //_gripper.fullOpen(); 
-    }
-    else
-    {
-      if(ros::Time::now().toSec()-_reachedTime>2)
-      {
-        _id = 0;
-        _reached = false;
-        _first = false; 
-        std::cerr << "d" << std::endl;
-      }
-    }
-  }
-      else if(_reached && _id == 5)
-  { 
-    if(!_first)
-    {
-      _first=true;
-      _reachedTime = ros::Time::now().toSec(); 
-      //_gripper.fullOpen(); 
-    }
-    else
-    {
-      if(ros::Time::now().toSec()-_reachedTime>2)
-      {
-        _id = 0;
-        _reached = false;
-        _first = false; 
-        std::cerr << "e" << std::endl;
-      }
-    }
-  }
-
-  //std::cerr << (_attractor[_id]-_x).norm() << " " <<(int) _reached << " " << _id << " " << ros::Time::now().toSec()-_reachedTime <<std::endl;
-
-  //_vd = 3.0f*(_xd-_x);
-
+  
   if(_vd.norm()>0.3f)
   {
     _vd *= 0.3f/_vd.norm();
