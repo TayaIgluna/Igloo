@@ -11,6 +11,7 @@ int main(int argc, char **argv)
   float frequency = 400.0f;
 
   MoveRobotWithGripper moveRobotWithGripper(n,frequency);
+  //ros::Subscriber _subRobArm = n.subscribe("/robArm/cmd", 10, &MoveRobotWithGripper::callBackRob, &moveRobotWithGripper);
 
   if (!moveRobotWithGripper.init()) 
   {
@@ -18,6 +19,8 @@ int main(int argc, char **argv)
   }
   else
   {
+    //ros::MultiThreadedSpinner spinner(4);
+    //spinner.spin();
     moveRobotWithGripper.run();
   }
 

@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   gazebo_ros
   std_msgs
   message_generation
+  growbot_msg
   dynamic_reconfigure
   utils
   grasp_interface
@@ -28,7 +29,7 @@ generate_messages(DEPENDENCIES std_msgs)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp rospy std_msgs message_generation dynamic_reconfigure utils grasp_interface
+  CATKIN_DEPENDS roscpp rospy std_msgs message_generation dynamic_reconfigure utils grasp_interface growbot_msg
   # DEPENDS Eigen
  )
 

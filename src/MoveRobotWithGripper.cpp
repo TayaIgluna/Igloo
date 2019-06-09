@@ -12,8 +12,19 @@ MoveRobotWithGripper::MoveRobotWithGripper(ros::NodeHandle &n, float frequency):
 {
 
   ROS_INFO_STREAM("The move to desired joints node is created at: " << _n.getNamespace() << " with freq: " << frequency << "Hz.");
+  //_subRobArm = _n.subscribe("/robArm/cmd", 10, &MoveRobotWithGripper::callBackRob);
 }
 
+void MoveRobotWithGripper::callBackRob( const growbot_msg::RobArm_cmd::ConstPtr& msg)
+{
+  ROS_INFO("I heard [%d]", msg->potID);
+  _aero=msg->aero;
+  _potID=msg->potID;
+  _pick=msg->bringBack;
+  _fini=false;
+  _msgMoving.isMoving=true;
+  _pubFini.publish(_msgMoving);
+}
 
 bool MoveRobotWithGripper::init() 
 {
@@ -36,8 +47,13 @@ bool MoveRobotWithGripper::init()
   }
 
   _pubCommand = _n.advertise<std_msgs::Float64MultiArray>("/iiwa/CustomControllers/command", 1);
-
+  _subRobArm = _n.subscribe<growbot_msg::RobArm_cmd>("/robArm/cmd", 10, &MoveRobotWithGripper::callBackRob, this);
+  //sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &CustomEffortController::commandCB, this);
+  //_aero=this->aero;
+  _pubFini = _n.advertise<growbot_msg::RobArm_moving>("/robArm/moving", 10);
+  _pubDispenser = _n.advertise<growbot_msg::Dispenser_cmd>("/dispenser/cmd",10);
   signal(SIGINT,MoveRobotWithGripper::stopNode);
+
 
   _gripper.activate();
   _gripper.setSpeed(-1);
@@ -46,16 +62,11 @@ bool MoveRobotWithGripper::init()
   _loopRate.sleep();
 
   _reached = false;
+  _fini=true;
+  
   _aero= false;
   _pick=true;
-  if(!_pick)
-    {
-      _id = 0;
-    }
-  else
-    {
-      _id=6;
-    }
+  _potID=1;
 
   
   _first = false;
@@ -77,9 +88,25 @@ bool MoveRobotWithGripper::init()
 
 void MoveRobotWithGripper::run() {
 
-  while (!_stop) 
+  /*growbot_msg::RobArm_cmdConstPtr msgs =ros::topic::waitForMessage<growbot_msg::RobArm_cmd>("/robArm/cmd", _n);
+  _aero=msgs->aero;
+  _potID=msgs->potID;
+  _pick=msgs->bringBack;*/
+  std::cerr<<"aa"<<std::endl;
+  _fini=false;
+
+  if(!_pick)
   {
-    if(_firstRobotPose)
+    _id = 0;
+  }
+  else
+  {
+    _id=6;
+  }
+
+  while (!_stop)
+  {
+    if(_firstRobotPose && !_fini)
     {
 
       _mutex.lock();
@@ -156,8 +183,6 @@ void MoveRobotWithGripper::receiveFrames()
       _aad = _aa;
       _vd.setConstant(0.0f);
     }
-
-    //std::cerr << "Position: " << _x.transpose() << std::endl;
   } 
   catch (tf::TransformException ex)
   {
@@ -169,33 +194,44 @@ void MoveRobotWithGripper::computeCommand()
 {
 
   // Compute desired velocity$
-  _attractor[0] << 0.54f, 0.0f, 0.67f;
-  _attractor[1]=_plants[0];
+
+  _attractor[0] << 0.54f, 0.0f, 0.6f;
+  _attractor[1]=_plants[_potID];
   _attractor[1](2)-=0.1f;
-  //too low horizontal pick
-  //_attractor[1] << 0.174f, -0.107f, 0.973f;
-  //_attractor[1] << 0.395f, -0.105f, 0.789f; 
-  _attractor[2]=_plants[0];
+
+  _attractor[2]=_plants[_potID];
+  //_attractor[2]=_plants[potID];
   _attractor[3]=_attractor[1];
-  _attractor[3](2)-=0.1f;
+  _attractor[3](2)-=0.17f;
   //good ones 4&5 aero
   if (_aero)
   {
-    _attractor[4] << 0.748f, -0.13f, 0.58f;
-    _attractor[5] << 0.716f, -0.059f, 0.503f;
+    _attractor[4] << 0.761f, -0.13f, 0.59f;
+    _attractor[5] << 0.741f, -0.059f, 0.503f;
 
   //laero suite
     _attractor[6]=_attractor[0];
-    _attractor[7] << 0.506f, -0.44f, 0.724f;
-    _attractor[8] << 0.58f, -0.44f, 0.724f;
+    _attractor[7] << 0.50f, -0.44f, 0.724f;
+
+    _attractor[8] << 0.55f, -0.44f, 0.724f;
+  
     _attractor[9]=_attractor[7];
-    _quat[5]<< 0.42f, 0.87f, 0.014f, 0.015f;
+    _attractor[10]=_attractor[7];
+    _attractor[10](2)-=0.05f;
+    _attractor[11]=_plants[_potID];
+    _attractor[11](2)-=0.22f;
+    _attractor[12]=_attractor[2];
+    _attractor[13]=_attractor[2];
+    _attractor[13](2)-=0.1f;
+    _attractor[14]=_attractor[0];
+    //_quat[5]<< 0.42f, 0.87f, 0.014f, 0.015f;
   }
   else if(!_aero && !_pick)
   {
     _attractor[4] << 0.705f, 0.223f, 0.612f;
-    _attractor[5] << 0.715f, 0.223f, 0.612f;
-    _quat[5]=_quat[1];
+    _attractor[5] << 0.725f, 0.223f, 0.62f;
+    _attractor[6]=_attractor[0];
+    _attractor[7]=_attractor[0];
   }
   else if(!_aero && _pick)
   {
@@ -204,29 +240,25 @@ void MoveRobotWithGripper::computeCommand()
     _attractor[6] << 0.715f, 0.223f, 0.612f;
     _attractor[7] =_attractor[0];
   }
-
-  //_quat[1] << 0.69f, 0.022f, 0.71f, 0.0f; 
-  _quat[1] << 0.999f, -0.02f, 0.027f, 0.027f; 
-  //_quat[1]<< 0.533f, 0.466f, 0.546f, -0.448f;
-  _quat[0]=_quat[1];
-  _quat[2]=_quat[1];
-  _quat[3]=_quat[1];
-  _quat[6]=_quat[1];
-  _quat[7]=_quat[1];
-  _quat[4]=_quat[1];
-  _quat[8]=_quat[1];
-  _quat[9]=_quat[1];
-  int nb=7;
-  // too low
-  //_quat[1] << 0.693f, -0.006f, 0.721f, -0.01f; 
-  //_quat[2] << 0.71f, -0.001f, 0.704f,-0.03f;
-  //_quat[2] << 0.68f, 0.01f, 0.73f,0.0f; goods
-  //_quat[3] << 0.672f, 0.005f, 0.740f, -0.003f; 
-  //_quat[4] << 0.075f, 0.61f, 0.248f, 0.748f;
-  //_quat[4] << 0.206f, 0.646f, 0.182f, 0.712f;
-  _qd=_quat[_id];
+  if(_aero)
+  {
+    nb=13;
+  }
+  else
+  {
+    nb=7;
+  }
+  Eigen::Vector4f _quati (1.0f, 0.0f, 0.0f, 0.0f);
+  if(_id==5 && _aero)
+  {
+    _qd<<0.42f, 0.87f, 0.014f, 0.015f;
+  }
+  else
+  {
+    _qd=_quati;
+  }
   _qd.normalize();
-  _vd = 3.0f*(_attractor[_id]-_x);
+  _vd = 4.0f*(_attractor[_id]-_x);
 
   if((_attractor[_id]-_x).norm()<0.05)
   {
@@ -252,6 +284,17 @@ void MoveRobotWithGripper::computeCommand()
       {
         _gripper.fullOpen();
       }
+      else if(_id==8 && _aero)
+      {
+        _pubDispenser.publish(_msgCom);
+        //growbot_msg::Dispenser_movingConstPtr msgs =ros::topic::waitForMessage<growbot_msg::Dispenser_moving >("/dispenser/moving", _n);
+        std::cerr<<"jiji"<<std::endl;
+      }
+      else if(_id==12)
+      {
+        _gripper.fullOpen();
+      }
+
       if(_id==5 && !_aero)
       {
         if(!_pick)
@@ -270,13 +313,22 @@ void MoveRobotWithGripper::computeCommand()
       {
         if(!_pick)
         {
-          if(_id!=nb)
+          if(_id!=nb && _id!=8)
           {
             _id = _id+1;
+          }
+          else if(_id==8)
+          {
+            while(ros::Time::now().toSec()-_reachedTime<4);
+            _id=9;
           }
           else
           {
             _id=0;
+            _msgMoving.isMoving=false;
+            _pubFini.publish(_msgMoving);
+            _fini=true;
+            return;
           }
         }
         else
@@ -288,6 +340,10 @@ void MoveRobotWithGripper::computeCommand()
           else
           {
             _id=nb;
+            _msgMoving.isMoving=false;
+            _pubFini.publish(_msgMoving);
+            _fini=true;
+            return;
           } 
         }
         _reached = false;
@@ -326,3 +382,5 @@ void MoveRobotWithGripper::publishData()
   }
   _pubCommand.publish(_msgCommand);
 }
+
+
