@@ -75,7 +75,7 @@ class MoveRobotWithGripper
 		bool _stop = false;
 		static MoveRobotWithGripper* me;
 		//const Eigen::Vector4f _quat[10]=Eigen::Vector4f::Constant(10, Eigen::Vector4f(0.999f, -0.02f, 0.027f, 0.027f));
-		const Eigen::Vector3f _plants[11]={Eigen::Vector3f (0.352f, 0.36f, 0.86f), Eigen::Vector3f (0.352f, 0.238f, 0.86f), Eigen::Vector3f (0.34f, 0.11f, 0.86f), Eigen::Vector3f (0.357f, -0.1f, 0.86f), Eigen::Vector3f (0.357f, -0.238f, 0.86f),Eigen::Vector3f (0.357f, -0.368f, 0.86f), Eigen::Vector3f(0.555f, 0.23f, 0.856f), Eigen::Vector3f(0.555f, 0.1f, 0.856f), Eigen::Vector3f(0.555f, -0.112f, 0.856f), Eigen::Vector3f (0.553f, -0.242f, 0.856f),Eigen::Vector3f (0.555f, -0.372f, 0.856f)};
+		const Eigen::Vector3f _plants[11]={Eigen::Vector3f (0.352f, 0.36f, 0.86f), Eigen::Vector3f (0.352f, 0.238f, 0.86f), Eigen::Vector3f (0.34f, 0.11f, 0.86f), Eigen::Vector3f (0.357f, -0.1f, 0.86f), Eigen::Vector3f (0.357f, -0.238f, 0.86f),Eigen::Vector3f (0.357f, -0.368f, 0.86f), Eigen::Vector3f(0.555f, 0.23f, 0.856f), Eigen::Vector3f(0.56f, 0.112f, 0.856f), Eigen::Vector3f(0.555f, -0.112f, 0.856f), Eigen::Vector3f (0.553f, -0.242f, 0.856f),Eigen::Vector3f (0.555f, -0.372f, 0.856f)};
 		/*  _plants[0] << 0.42f, -0.148f, 0.83f;
   _plants[1] << 0.6f, -0.105f, 0.73f;
   _plants[2] << 0.445f, -0.258f, 0.789f;

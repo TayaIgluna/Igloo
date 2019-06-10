@@ -66,7 +66,7 @@ bool MoveRobotWithGripper::init()
   
   _aero= false;
   _pick=true;
-  _potID=1;
+  _potID=10;
 
   
   _first = false;
@@ -173,7 +173,6 @@ void MoveRobotWithGripper::receiveFrames()
     Eigen::Vector3f axis;
     Utils<float>::quaternionToAxisAngle(_q,axis,angle);
     _aa = angle*axis;
-    //std::cerr << "Axis angle measured: " << _aa.transpose() << std::endl;
     
     if(_firstRobotPose==false)
     {
@@ -200,7 +199,6 @@ void MoveRobotWithGripper::computeCommand()
   _attractor[1](2)-=0.1f;
 
   _attractor[2]=_plants[_potID];
-  //_attractor[2]=_plants[potID];
   _attractor[3]=_attractor[1];
   _attractor[3](2)-=0.17f;
   //good ones 4&5 aero
@@ -226,20 +224,14 @@ void MoveRobotWithGripper::computeCommand()
     _attractor[14]=_attractor[0];
     //_quat[5]<< 0.42f, 0.87f, 0.014f, 0.015f;
   }
-  else if(!_aero && !_pick)
+  else if(!_aero)
   {
-    _attractor[4] << 0.705f, 0.223f, 0.612f;
-    _attractor[5] << 0.725f, 0.223f, 0.62f;
-    _attractor[6]=_attractor[0];
+    _attractor[4] << 0.73f, 0.21f, 0.59f;
+    _attractor[5] << 0.73f, 0.21f, 0.655f;
+    _attractor[6] << 0.73f, 0.21f, 0.59f;
     _attractor[7]=_attractor[0];
   }
-  else if(!_aero && _pick)
-  {
-    _attractor[4] << 0.715f, 0.223f, 0.612f;
-    _attractor[5] << 0.715f, 0.223f, 0.66f;
-    _attractor[6] << 0.715f, 0.223f, 0.612f;
-    _attractor[7] =_attractor[0];
-  }
+
   if(_aero)
   {
     nb=13;
@@ -275,7 +267,7 @@ void MoveRobotWithGripper::computeCommand()
     {
       _first=true;
       _reachedTime = ros::Time::now().toSec();  
-      //_gripper.fullOpen();
+  
       if(_id==2 && !_pick)
       {
         _gripper.fullClose();
@@ -287,15 +279,12 @@ void MoveRobotWithGripper::computeCommand()
       else if(_id==8 && _aero)
       {
         _pubDispenser.publish(_msgCom);
-        //growbot_msg::Dispenser_movingConstPtr msgs =ros::topic::waitForMessage<growbot_msg::Dispenser_moving >("/dispenser/moving", _n);
-        std::cerr<<"jiji"<<std::endl;
       }
       else if(_id==12)
       {
         _gripper.fullOpen();
       }
-
-      if(_id==5 && !_aero)
+      else if(_id==5 && !_aero)
       {
         if(!_pick)
         {
