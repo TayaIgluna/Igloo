@@ -18,10 +18,20 @@ MoveRobotWithGripper::MoveRobotWithGripper(ros::NodeHandle &n, float frequency):
 void MoveRobotWithGripper::callBackRob( const growbot_msg::RobArm_cmd::ConstPtr& msg)
 {
   ROS_INFO("I heard [%d]", msg->potID);
+  ROS_INFO("I heard [%d]", msg->aero);
+  ROS_INFO("I heard [%d]", msg->bringBack);
   _aero=msg->aero;
   _potID=msg->potID;
   _pick=msg->bringBack;
   _fini=false;
+  if(!_pick)
+  {
+    _id = 0;
+  }
+  else
+  {
+    _id=6;
+  }
   _msgMoving.isMoving=true;
   _pubFini.publish(_msgMoving);
 }
@@ -48,8 +58,7 @@ bool MoveRobotWithGripper::init()
 
   _pubCommand = _n.advertise<std_msgs::Float64MultiArray>("/iiwa/CustomControllers/command", 1);
   _subRobArm = _n.subscribe<growbot_msg::RobArm_cmd>("/robArm/cmd", 10, &MoveRobotWithGripper::callBackRob, this);
-  //sub_command_ = n.subscribe<std_msgs::Float64MultiArray>("command", 1, &CustomEffortController::commandCB, this);
-  //_aero=this->aero;
+
   _pubFini = _n.advertise<growbot_msg::RobArm_moving>("/robArm/moving", 10);
   _pubDispenser = _n.advertise<growbot_msg::Dispenser_cmd>("/dispenser/cmd",10);
   signal(SIGINT,MoveRobotWithGripper::stopNode);
@@ -64,9 +73,9 @@ bool MoveRobotWithGripper::init()
   _reached = false;
   _fini=true;
   
-  _aero= false;
-  _pick=true;
-  _potID=10;
+  /*_aero= true;
+  _pick=false;
+  _potID=2;*/
 
   
   _first = false;
@@ -88,21 +97,9 @@ bool MoveRobotWithGripper::init()
 
 void MoveRobotWithGripper::run() {
 
-  /*growbot_msg::RobArm_cmdConstPtr msgs =ros::topic::waitForMessage<growbot_msg::RobArm_cmd>("/robArm/cmd", _n);
-  _aero=msgs->aero;
-  _potID=msgs->potID;
-  _pick=msgs->bringBack;*/
-  std::cerr<<"aa"<<std::endl;
-  _fini=false;
-
-  if(!_pick)
-  {
-    _id = 0;
-  }
-  else
-  {
-    _id=6;
-  }
+  std::cerr<<"pick"<< _pick <<std::endl;
+  //_fini=false;
+  //_id=0;
 
   while (!_stop)
   {
@@ -193,7 +190,6 @@ void MoveRobotWithGripper::computeCommand()
 {
 
   // Compute desired velocity$
-
   _attractor[0] << 0.54f, 0.0f, 0.6f;
   _attractor[1]=_plants[_potID];
   _attractor[1](2)-=0.1f;
@@ -205,13 +201,13 @@ void MoveRobotWithGripper::computeCommand()
   if (_aero)
   {
     _attractor[4] << 0.761f, -0.13f, 0.59f;
-    _attractor[5] << 0.741f, -0.059f, 0.503f;
+    _attractor[5] << 0.751f, -0.059f, 0.503f;
 
   //laero suite
     _attractor[6]=_attractor[0];
-    _attractor[7] << 0.50f, -0.44f, 0.724f;
+    _attractor[7] << 0.46f, -0.395f, 0.75f;
 
-    _attractor[8] << 0.55f, -0.44f, 0.724f;
+    _attractor[8] << 0.56f, -0.395f, 0.75f;
   
     _attractor[9]=_attractor[7];
     _attractor[10]=_attractor[7];
@@ -234,7 +230,7 @@ void MoveRobotWithGripper::computeCommand()
 
   if(_aero)
   {
-    nb=13;
+    nb=14;
   }
   else
   {

@@ -19,8 +19,6 @@ int main(int argc, char **argv)
   }
   else
   {
-    //ros::MultiThreadedSpinner spinner(4);
-    //spinner.spin();
     moveRobotWithGripper.run();
   }
 
